@@ -140,3 +140,51 @@ export function analyzeFile(code: string, filePath: string): FileComplexityResul
         };
     }
 }
+
+function findFunctionNode(
+    node: TSESTree.Node,
+    targetName: string,
+    targetLine: number,
+    parent?: TSESTree.Node
+): TSESTree.Node | null {
+    const isFunctionNode = FUNCTION_NODES.includes(node.type);
+    
+    if (isFunctionNode) {
+        const name = getFunctionName(node, parent);
+        if (node.loc && name === targetName && node.loc.start.line === targetLine) {
+            return node;
+        }
+    }
+    
+    for (const key in node) {
+        const child = (node as any)[key];
+        
+        if (child && typeof child === 'object') {
+            if (child.type) {
+                const found = findFunctionNode(child as TSESTree.Node, targetName, targetLine, node);
+                if (found) return found;
+            }
+            
+            if (Array.isArray(child)) {
+                for (const item of child) {
+                    if (item && item.type) {
+                        const found = findFunctionNode(item as TSESTree.Node, targetName, targetLine, node);
+                        if (found) return found;
+                    }
+                }
+            }
+        }
+    }
+    
+    return null;
+}
+
+export function findFunctionInCode(code: string, functionName: string, line: number): TSESTree.Node | null {
+    try {
+        const ast = getAst(code);
+        return findFunctionNode(ast, functionName, line);
+    } catch (error) {
+        console.error('Erro ao encontrar função:', error);
+        return null;
+    }
+}
