@@ -29,6 +29,8 @@ export interface PathCoverageGraph {
 const DIRECT_DECISION_NODES = [
   "IfStatement",
   "ForStatement",
+  "ForInStatement",
+  "ForOfStatement",
   "WhileStatement",
   "DoWhileStatement",
   "ConditionalExpression",
@@ -48,6 +50,10 @@ function getNodeLabel(node: TSESTree.Node): string {
       return "IF";
     case "ForStatement":
       return "FOR";
+    case "ForInStatement":
+      return "FOR-IN";
+    case "ForOfStatement":
+      return "FOR-OF";
     case "WhileStatement":
       return "WHILE";
     case "DoWhileStatement":
@@ -60,6 +66,8 @@ function getNodeLabel(node: TSESTree.Node): string {
       return "SWITCH";
     case "SwitchCase":
       return "CASE";
+    case "ReturnStatement":
+      return "RETURN";
     default:
       return "BB-PROCESS";
   }
@@ -102,7 +110,7 @@ function mergeBasicBlocks(
   edges.push({
     from: startNodeId!,
     to: mergedNodeId,
-    label: "BB-PROCESS",
+    label: "",
   });
 
   return mergedNodeId;
@@ -186,6 +194,27 @@ function processStatementSequence(
         true
       );
       lastEndNodeId = decisionEnds[0] || lastEndNodeId;
+    } else if (stmt.type === "ReturnStatement") {
+      lastEndNodeId = mergeBasicBlocks(
+        basicBlockStatements,
+        nodes,
+        edges,
+        source,
+        filePath,
+        lastEndNodeId
+      );
+      basicBlockStatements = [];
+      const returnEnds = buildGraphFromNode(
+        stmt as TSESTree.Node,
+        nodes,
+        edges,
+        source,
+        filePath,
+        lastEndNodeId,
+        "",
+        true
+      );
+      lastEndNodeId = returnEnds[0] || lastEndNodeId;
     } else {
       basicBlockStatements.push(stmt);
     }
@@ -280,26 +309,33 @@ function buildGraphFromNode(
   } else if (
     node.type === "WhileStatement" ||
     node.type === "DoWhileStatement" ||
-    node.type === "ForStatement"
+    node.type === "ForStatement" ||
+    node.type === "ForInStatement" ||
+    node.type === "ForOfStatement"
   ) {
-    if ((node as TSESTree.WhileStatement | TSESTree.ForStatement).body) {
+    const loopNode = node as TSESTree.WhileStatement | TSESTree.DoWhileStatement | TSESTree.ForStatement | TSESTree.ForInStatement | TSESTree.ForOfStatement;
+    if (loopNode.body) {
       const bodyEnds = buildGraphFromNode(
-        (node as TSESTree.WhileStatement | TSESTree.ForStatement)
-          .body as TSESTree.Node,
+        loopNode.body as TSESTree.Node,
         nodes,
         edges,
         source,
         filePath,
         currentNodeId,
-        "T"
+        "T",
+        true
       );
-      bodyEnds.forEach((endId) => {
-        edges.push({
-          from: endId,
-          to: currentNodeId,
-          label: "LOOP",
+      if (bodyEnds.length > 0) {
+        bodyEnds.forEach((endId) => {
+          if (endId && endId !== currentNodeId) {
+            edges.push({
+              from: endId,
+              to: currentNodeId,
+              label: "LOOP",
+            });
+          }
         });
-      });
+      }
     }
     endNodes = [currentNodeId];
   } else if (node.type === "ConditionalExpression") {
@@ -362,6 +398,8 @@ function buildGraphFromNode(
     } else {
       endNodes = [currentNodeId];
     }
+  } else if (node.type === "ReturnStatement") {
+    endNodes = [currentNodeId];
   }
 
   return endNodes;
