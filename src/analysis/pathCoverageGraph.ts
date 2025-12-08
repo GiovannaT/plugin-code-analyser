@@ -65,6 +65,49 @@ function getNodeLabel(node: TSESTree.Node): string {
   }
 }
 
+function mergeBasicBlocks(
+  basicBlockStatements: TSESTree.Statement[],
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  source: string,
+  filePath: string,
+  startNodeId: string | null
+): string {
+  if (basicBlockStatements.length === 0) {
+    return startNodeId!;
+  }
+
+  const firstNode = basicBlockStatements[0];
+  const lastNode = basicBlockStatements[basicBlockStatements.length - 1];
+
+  const mergedRange: [number, number] = [firstNode.range[0], lastNode.range[1]];
+  const mergedLoc = { start: firstNode.loc?.start, end: lastNode.loc?.end };
+  let code: string | undefined = undefined;
+  if (mergedRange[0] < mergedRange[1]) {
+    code = source.slice(mergedRange[0], mergedRange[1]);
+  }
+
+  const mergedNodeId = getNodeId();
+  nodes.push({
+    id: mergedNodeId,
+    label: `BB-PROCESS (L${firstNode.loc?.start?.line}-L${lastNode.loc?.end?.line})`,
+    type: "process",
+    filePath: filePath,
+    isBasicBlock: true,
+    range: mergedRange,
+    loc: mergedLoc,
+    code: code,
+  });
+
+  edges.push({
+    from: startNodeId!,
+    to: mergedNodeId,
+    label: "BB-PROCESS",
+  });
+
+  return mergedNodeId;
+}
+
 function createAndConnectNode(
   node: TSESTree.Node,
   nodes: GraphNode[],
@@ -116,11 +159,22 @@ function processStatementSequence(
   startNodeId: string
 ): string {
   let lastEndNodeId: string = startNodeId;
+  let basicBlockStatements: TSESTree.Statement[] = [];
+
   statements.forEach((stmt) => {
     if (
       DIRECT_DECISION_NODES.includes(stmt.type) ||
       stmt.type === "SwitchStatement"
     ) {
+      lastEndNodeId = mergeBasicBlocks(
+        basicBlockStatements,
+        nodes,
+        edges,
+        source,
+        filePath,
+        lastEndNodeId
+      );
+      basicBlockStatements = [];
       const decisionEnds = buildGraphFromNode(
         stmt as TSESTree.Node,
         nodes,
@@ -133,21 +187,18 @@ function processStatementSequence(
       );
       lastEndNodeId = decisionEnds[0] || lastEndNodeId;
     } else {
-      const currentNodeId = createAndConnectNode(
-        stmt,
-        nodes,
-        edges,
-        source,
-        filePath,
-        lastEndNodeId,
-        "",
-        "process",
-        true
-      );
-      lastEndNodeId = currentNodeId;
+      basicBlockStatements.push(stmt);
     }
   });
 
+  lastEndNodeId = mergeBasicBlocks(
+    basicBlockStatements,
+    nodes,
+    edges,
+    source,
+    filePath,
+    lastEndNodeId
+  );
   return lastEndNodeId;
 }
 
@@ -189,13 +240,12 @@ function buildGraphFromNode(
     false
   );
 
-  let endNodes: string [] = [currentNodeId];
+  let endNodes: string[] = [currentNodeId];
 
   if (node.type === "IfStatement") {
     const endNodesList: string[] = [];
     const conditionId = currentNodeId;
 
-    // True Branch (Consequent)
     if (node.consequent) {
       const consequentEnds = buildGraphFromNode(
         node.consequent as TSESTree.Node,
@@ -204,13 +254,12 @@ function buildGraphFromNode(
         source,
         filePath,
         conditionId,
-        "T", // Label 'T'
+        "T",
         true
       );
       endNodesList.push(...consequentEnds);
     }
 
-    // False Branch (Alternate)
     if (node.alternate) {
       const alternateEnds = buildGraphFromNode(
         node.alternate as TSESTree.Node,
@@ -219,17 +268,15 @@ function buildGraphFromNode(
         source,
         filePath,
         conditionId,
-        "F", // Label 'F'
+        "F",
         false
       );
       endNodesList.push(...alternateEnds);
     } else {
-        // Se não houver 'else', o fluxo falso sai da decisão e segue para o próximo BB
-        endNodesList.push(conditionId);
+      endNodesList.push(conditionId);
     }
 
     endNodes = endNodesList.length > 0 ? endNodesList : [conditionId];
-
   } else if (
     node.type === "WhileStatement" ||
     node.type === "DoWhileStatement" ||
@@ -237,13 +284,14 @@ function buildGraphFromNode(
   ) {
     if ((node as TSESTree.WhileStatement | TSESTree.ForStatement).body) {
       const bodyEnds = buildGraphFromNode(
-        (node as TSESTree.WhileStatement | TSESTree.ForStatement).body as TSESTree.Node,
+        (node as TSESTree.WhileStatement | TSESTree.ForStatement)
+          .body as TSESTree.Node,
         nodes,
         edges,
         source,
         filePath,
         currentNodeId,
-        "T" // Aresta de entrada no corpo (True)
+        "T"
       );
       bodyEnds.forEach((endId) => {
         edges.push({
@@ -254,7 +302,6 @@ function buildGraphFromNode(
       });
     }
     endNodes = [currentNodeId];
-
   } else if (node.type === "ConditionalExpression") {
     const endNodesList: string[] = [];
     endNodesList.push(
@@ -283,7 +330,6 @@ function buildGraphFromNode(
       )
     );
     endNodes = endNodesList.length > 0 ? endNodesList : [currentNodeId];
-
   } else if (node.type === "SwitchStatement") {
     const endNodesList: string[] = [];
     if (node.cases && Array.isArray(node.cases)) {
@@ -301,32 +347,22 @@ function buildGraphFromNode(
         );
       });
     }
-    // Se não houver casos, o fluxo sai do SWITCH sem entrar em nenhum case
     endNodes = endNodesList.length > 0 ? endNodesList : [currentNodeId];
-
   } else if (node.type === "SwitchCase") {
-    // SwitchCase: o corpo do case é uma sequência de statements (BBs)
     if (node.consequent && Array.isArray(node.consequent)) {
-        // O corpo do case começa após o nó CASE (currentNodeId)
-        const caseEndId = processStatementSequence(
-            node.consequent,
-            nodes,
-            edges,
-            source,
-            filePath,
-            currentNodeId
-        );
-        endNodes = [caseEndId];
+      const caseEndId = processStatementSequence(
+        node.consequent,
+        nodes,
+        edges,
+        source,
+        filePath,
+        currentNodeId
+      );
+      endNodes = [caseEndId];
     } else {
-        // Case vazio
-        endNodes = [currentNodeId];
+      endNodes = [currentNodeId];
     }
   }
-
-  // 3. Nó de Processo Simples (BB)
-  // Se o nó for um statement simples (como ReturnStatement, ExpressionStatement, etc.),
-  // ele já foi criado no passo 1 e não tem corpo para processar.
-  // Ele apenas retorna seu próprio ID como o nó de saída.
 
   return endNodes;
 }
@@ -355,8 +391,6 @@ export function generatePathCoverageGraph(
 
   if (functionNodeWithBody.body) {
     const bodyNode = functionNodeWithBody.body;
-    // O corpo da função (geralmente um BlockStatement) é o primeiro grande BB
-    // que é processado a partir do ENTRY.
     endNodeIds = buildGraphFromNode(
       bodyNode as TSESTree.Node,
       nodes,
@@ -364,7 +398,7 @@ export function generatePathCoverageGraph(
       sourceCode,
       filePath,
       entryNodeId,
-      "", // Aresta de ENTRY para o corpo é vazia
+      "",
       true
     );
   }

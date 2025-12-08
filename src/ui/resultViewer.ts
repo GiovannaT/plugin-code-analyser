@@ -16,9 +16,9 @@ interface ProjectAnalysisResultItem {
 }
 
 const getComplexityColor = (cc: number): string => {
-  if (cc >= 11) return "#edae01ff"; // (Alto risco)
-  if (cc >= 21) return "#ff0000ff"; // (Risco muito alto)
-  return "#0cec00ff"; // (Risco baixo/moderado)
+  if (cc >= 21) return "#ff0000ff"; 
+  if (cc >= 11) return "#edae01ff"; 
+  return "#0cec00ff";
 };
 
 function getWebviewContent(results: ProjectAnalysisResultItem[]): string {

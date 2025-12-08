@@ -1,5 +1,3 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import * as path from "path";
 import {
@@ -9,16 +7,12 @@ import {
 } from "./analysis/analyser";
 import { showAnalysisResults } from "./ui/resultViewer";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel(
     "Complexidade Ciclomática - Relatório"
   );
   context.subscriptions.push(outputChannel);
 
-  console.log('Congratulations, your extension "code-analyser" is now active!');
   const disposableActiveFile = vscode.commands.registerCommand(
     "code-analyser.analyzeActiveFile",
     async () => {
@@ -46,12 +40,10 @@ export function activate(context: vscode.ExtensionContext) {
 
       const code = document.getText();
 
-      // 🎯 Chama sua lógica de análise e recebe o novo objeto FileComplexityResult
       const fileResult: FileComplexityResult = analyzeFile(code, filePath);
 
-      // 🎯 Exibe os resultados no Output Panel
       outputChannel.clear();
-      outputChannel.show(true); // Garante que o painel seja visível
+      outputChannel.show(true); 
 
       outputChannel.appendLine(
         "================================================="
@@ -63,7 +55,6 @@ export function activate(context: vscode.ExtensionContext) {
         "================================================="
       );
 
-      // Imprimindo as novas propriedades agregadas
       outputChannel.appendLine(
         `TOTAL DE FUNÇÕES ANALISADAS: ${fileResult.totalFunctions}`
       );
@@ -113,7 +104,6 @@ export function activate(context: vscode.ExtensionContext) {
         "Iniciando análise de Complexidade Ciclomática..."
       );
 
-      // 2. Encontrar todos os arquivos JS/TS (excluindo node_modules)
       const files = await vscode.workspace.findFiles(
         "**/*.{ts,js,tsx,jsx}",
         "**/node_modules/**"
@@ -131,9 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
         functions: FunctionComplexityResult[];
       }[] = [];
 
-      // Removido: A lógica de pegar apenas o 'editor ativo' foi removida para focar no projeto.
 
-      // 3. Processar cada arquivo e mostrar progresso
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -149,13 +137,11 @@ export function activate(context: vscode.ExtensionContext) {
               increment: (1 / files.length) * 100,
             });
 
-            // Leitura do arquivo (API nativa do VS Code)
             const fileContentBuffer = await vscode.workspace.fs.readFile(
               fileUri
             );
             const fileContent = Buffer.from(fileContentBuffer).toString("utf8");
 
-            // Chama a sua lógica de análise
             const results = analyzeFile(fileContent, fileUri.fsPath);
 
             projectResults.push({
@@ -166,7 +152,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
       );
 
-      // 4. Finalizar e Mostrar Resultados
       const totalFiles = projectResults.length;
       const totalFunctions = projectResults.reduce(
         (sum, f) => sum + f.functions.length,
@@ -178,15 +163,12 @@ export function activate(context: vscode.ExtensionContext) {
 
       const selectedAction = await vscode.window.showInformationMessage(
         `Análise de Complexidade Finalizada! Arquivos: ${totalFiles}, Funções: ${totalFunctions}.`,
-        // Argumentos que definem os botões:
         { modal: false },
         viewResultsButton,
         dismissButton
       );
 
-      // Trata a ação selecionada pelo usuário
       if (selectedAction === viewResultsButton) {
-        // 🎯 CHAMADA FINAL AQUI
         showAnalysisResults(projectResults, context);
       }
     }
@@ -195,5 +177,4 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
