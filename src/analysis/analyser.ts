@@ -1,10 +1,7 @@
-// src/analysis/analyzer.ts - CÓDIGO CORRIGIDO
-
 import { TSESTree } from '@typescript-eslint/typescript-estree';
 import { getAst } from './astParser';
 import { calculateFunctionComplexity } from './complexityCalculator';
 
-// Definição de tipos simplificada (Manter aqui ou em types.ts)
 export interface FunctionComplexityResult {
     name: string;
     line: number;
@@ -13,12 +10,11 @@ export interface FunctionComplexityResult {
 
 export interface FileComplexityResult {
     totalFunctions: number;
-    totalComplexity: number; // Soma de todas as CCs
-    averageComplexity: number; // Média de CC por função
-    functions: FunctionComplexityResult[]; // Mantemos a lista detalhada para referência
+    totalComplexity: number; 
+    averageComplexity: number; 
+    functions: FunctionComplexityResult[]; 
 }
 
-// Tipos de nó que definem o início de uma nova função
 const FUNCTION_NODES = [
     'FunctionDeclaration', 
     'FunctionExpression', 
@@ -26,21 +22,14 @@ const FUNCTION_NODES = [
     'MethodDefinition', 
 ];
 
-// --- Funções Auxiliares de Nomenclatura (Pode ser transferida para um utilitário) ---
 
-/**
- * Tenta determinar o nome de uma função/método.
- */
 function getFunctionName(node: TSESTree.Node, parent?: TSESTree.Node): string {
-    // 1. FunctionDeclaration (ex: function nome() {})
     if (node.type === 'FunctionDeclaration' && node.id) {
         return node.id.name;
     } 
-    // 2. MethodDefinition (ex: class { metodo() {} })
     if (node.type === 'MethodDefinition' && node.key.type === 'Identifier') {
         return node.key.name;
     }
-    // 3. ArrowFunction ou FunctionExpression (ex: const nome = () => {})
     if (parent && parent.type === 'VariableDeclarator' && parent.id.type === 'Identifier') {
         return parent.id.name;
     }
@@ -48,8 +37,6 @@ function getFunctionName(node: TSESTree.Node, parent?: TSESTree.Node): string {
     return 'Função Anônima'; 
 }
 
-
-// --- Travessia Corrigida ---
 
 /**
  * Percorre a AST, encontra os nós de função e chama o calculador para cada um.
@@ -59,12 +46,9 @@ function traverseAndAnalyze(node: TSESTree.Node, results: FunctionComplexityResu
     
     let isFunctionNode = FUNCTION_NODES.includes(node.type);
     
-    // Casos especiais para funções anônimas (Arrow/FunctionExpression) que são filhos de um nó pai.
     if (isFunctionNode) {
-        // 1. Calcular a CC. Passamos o próprio nó da função, o calculador percorrerá o seu corpo.
         const complexity = calculateFunctionComplexity(node);
         
-        // 2. Determinar nome e linha
         const name = getFunctionName(node, parent);
         
         if (node.loc) {
@@ -76,22 +60,15 @@ function traverseAndAnalyze(node: TSESTree.Node, results: FunctionComplexityResu
         }
     }
     
-    // 3. Continuar a travessia recursiva
-    // A travessia deve continuar para encontrar outras funções aninhadas,
-    // mas deve ser cuidadosa para não duplicar a contagem.
-
     for (const key in node) {
         const child = (node as any)[key]; 
 
         if (child && typeof child === 'object') {
             
-            // Verifica se o filho é um nó da AST (possui a propriedade 'type')
             if (child.type) {
-                 // Chamada recursiva, passando o nó atual como pai
                  traverseAndAnalyze(child as TSESTree.Node, results, node);
             }
             
-            // Se for um array de nós filhos, percorre cada item
             if (Array.isArray(child)) {
                 for (const item of child) {
                     if (item && item.type) {
@@ -104,20 +81,17 @@ function traverseAndAnalyze(node: TSESTree.Node, results: FunctionComplexityResu
 }
 
 
-// --- Função de Exportação Principal ---
 export function analyzeFile(code: string, filePath: string): FileComplexityResult {
     try {
         const ast = getAst(code);
         const functionResults: FunctionComplexityResult[] = [];
         
-        // 1. Encontra e calcula a CC de todas as funções
         traverseAndAnalyze(ast, functionResults);
 
-        // 2. Agrega os resultados no nível do arquivo
         const totalFunctions = functionResults.length;
         const totalComplexity = functionResults.reduce((sum, func) => sum + func.complexity, 0);
         
-        // 3. Calcula a Complexidade Média (evita divisão por zero)
+        // Calcula a Complexidade Média (evita divisão por zero)
         const averageComplexity = totalFunctions > 0 
             ? totalComplexity / totalFunctions
             : 0;
@@ -130,7 +104,6 @@ export function analyzeFile(code: string, filePath: string): FileComplexityResul
         };
 
     } catch (error) {
-        // Lidar com erros de parsing
         console.error(`Erro ao analisar o arquivo ${filePath}:`, error);
         return {
             totalFunctions: 0,

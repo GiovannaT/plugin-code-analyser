@@ -123,6 +123,9 @@ function getGraphWebviewContent(
   const nodes = graph.nodes.map((node) => ({
     id: node.id,
     label: node.label,
+    filePath: node.filePath,
+    line: node.line,
+    range: node.range,
     color:
       node.type === "entry"
         ? "#4CAF50"
@@ -197,10 +200,10 @@ function getGraphWebviewContent(
                 nodes: {
                     shape: 'box',
                     font: {
-                        color: 'var(--vscode-editor-foreground)',
+                        color: 'white',
                         size: 14
                     },
-                    borderWidth: 2,
+                    borderWidth: 1,
                     shadow: true
                 },
                 edges: {
@@ -279,7 +282,7 @@ export function showAnalysisResults(
             return;
           }
 
-          const graph = generatePathCoverageGraph(functionNode);
+          const graph = generatePathCoverageGraph(functionNode, code, filePath);
 
           const graphPanel = vscode.window.createWebviewPanel(
             "pathCoverageGraph",
