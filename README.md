@@ -1,71 +1,95 @@
-# code-analyser README
+# 📊 Cyclomatic Complexity Analyzer (CCA) para JS/TS
 
-This is the README for your extension "code-analyser". After writing up a brief description, we recommend including the following sections.
+O **Cyclomatic Complexity Analyzer (CCA)** é uma ferramenta de análise estática de código dedicada a medir e visualizar a Complexidade Ciclomática (CC) em projetos JavaScript e TypeScript. Ele oferece uma visão granular da saúde estrutural do seu código, ajudando você a identificar funções complexas que podem ser difíceis de testar e manter.
 
-## Features
+## ✨ Funcionalidades Principais
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+  * **Análise Granular de CC:** Calcula a Complexidade Ciclomática (CC) para **cada função** dentro de seus arquivos `.js`, `.ts`
+  * **Métrica de Saúde do Projeto:** Fornece a **Complexidade Ciclomática Média do Projeto (CCMédia)**, oferecendo um *benchmark* rápido e acionável da qualidade geral do código.
+  * **Visualização Interativa da AST:** Ao clicar em um arquivo, visualize a **Árvore de Sintaxe Abstrata (AST)** gerada, com nós de controle de fluxo (como `if`, `while`, `for`, `case`, `&&`, `||`, etc.) destacados para mostrar **como** o valor da CC é calculado.
+  * **Relatórios e Priorização:** Lista funções e arquivos por ordem decrescente de CC, permitindo que você priorize refatorações.
 
-For example if there is an image subfolder under your extension project workspace:
+## 🚀 Como Usar
 
-\!\[feature X\]\(images/feature-x.png\)
+### Instalação
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+#### 1\. Via NPM ou Yarn
 
-## Requirements
+Instale o pacote como uma dependência de desenvolvimento no seu projeto:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+```bash
+npm install --save-dev cyclomatic-complexity-analyzer
+# ou
+yarn add --dev cyclomatic-complexity-analyzer
+```
 
-## Extension Settings
+#### 2\. Executando a Análise
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+Você pode executar a ferramenta diretamente a partir da linha de comando, especificando o diretório raiz do seu projeto ou os arquivos que deseja analisar.
 
-For example:
+**Exemplo no `package.json`:**
 
-This extension contributes the following settings:
+Adicione um *script* para facilitar a execução:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+```json
+"scripts": {
+  "analyze:cc": "cca analyze ./src --threshold 10"
+}
+```
 
-## Known Issues
+Execute o *script*:
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+```bash
+npm run analyze:cc
+```
 
-## Release Notes
+### Opções de Linha de Comando
 
-Users appreciate release notes as you update your extension.
+| Opção | Descrição | Exemplo |
+| :--- | :--- | :--- |
+| `--path <dir>` | O diretório base para análise (obrigatório). | `./src` |
+| `--threshold <num>` | O valor de CC máximo aceitável para funções (padrão: `10`). Funções acima deste limite são marcadas. | `--threshold 8` |
+| `--format <type>` | Formato da saída (`cli` ou `json`). | `--format json` |
+| `--exclude <pattern>`| Padrão glob para excluir arquivos/pastas (e.g., `**/__tests__/**`). | `--exclude '**/vendor/**'` |
 
-### 1.0.0
+## 💻 Interface do Usuário (CLI/Web)
 
-Initial release of ...
+O CCA apresenta os resultados de maneira clara e hierárquica:
 
-### 1.0.1
+### 1\. Resumo do Projeto
 
-Fixed issue #.
+| Métrica | Valor |
+| :--- | :--- |
+| **Arquivos Analisados** | N |
+| **Total de Funções** | M |
+| **Complexidade Ciclomática Média (CCMédia)** | **4.5** (Idealmente \< 6) |
+| **Funções Acima do Limite (CC \> 10)** | K |
 
-### 1.1.0
+### 2\. Detalhamento por Arquivo
 
-Added features X, Y, and Z.
+É apresentada uma lista de arquivos, ordenada por complexidade total.
 
----
+| Arquivo | CC Total | CC Média | Funções Críticas |
+| :--- | :--- | :--- | :--- |
+| `src/controllers/userController.ts` | **35** | 7.0 | 2 |
+| `src/utils/formatter.js` | 12 | 3.0 | 0 |
 
-## Following extension guidelines
+### 3\. Visualização da AST (Modo Interativo)
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+Ao selecionar um arquivo, a interface interativa permite navegar pela AST da função. Os nós que aumentam a complexidade (e.g., `IfStatement`, `ForStatement`, `LogicalExpression` (`&&`, `||`)) são visualmente destacados, e um contador dinâmico mostra o CC acumulado.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+> 📝 **Nota:** Uma CC ideal é geralmente **inferior a 10**. Valores acima de 20 sugerem alta complexidade e necessidade urgente de refatoração (dividir a função em partes menores).
 
-## Working with Markdown
+## 🛠️ Como Contribuir
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+Contribuições são muito bem-vindas\! Sinta-se à vontade para abrir uma `issue` para reportar *bugs* ou sugerir novas funcionalidades.
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+1.  Faça um *fork* do repositório.
+2.  Crie uma *branch* para sua funcionalidade (`git checkout -b feature/minha-feature`).
+3.  Faça o *commit* de suas alterações (`git commit -am 'feat: Adiciona nova funcionalidade X'`).
+4.  Faça o *push* para a *branch* (`git push origin feature/minha-feature`).
+5.  Abra um *Pull Request* (PR).
 
-## For more information
+## 📜 Licença
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Este projeto está licenciado sob a [Licença MIT](https://www.google.com/search?q=LICENSE).

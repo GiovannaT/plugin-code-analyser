@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
       const fileResult: FileComplexityResult = analyzeFile(code, filePath);
 
       outputChannel.clear();
-      outputChannel.show(true); 
+      outputChannel.show(true);
 
       outputChannel.appendLine(
         "================================================="
@@ -99,7 +99,6 @@ export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
     "code-analyser.analyzeProject",
     async () => {
-      // 1. Mostrar que a análise começou
       vscode.window.showInformationMessage(
         "Iniciando análise de Complexidade Ciclomática..."
       );
@@ -120,7 +119,6 @@ export function activate(context: vscode.ExtensionContext) {
         filePath: string;
         functions: FunctionComplexityResult[];
       }[] = [];
-
 
       await vscode.window.withProgress(
         {
