@@ -24,17 +24,35 @@ const getComplexityColor = (cc: number): string => {
 function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
   let tableRows = "";
 
-  const totalFiles = results.length;
-  const allFunctions = results.flatMap((item) => item.functions);
+  const sortedResults = [...results].sort((a, b) => 
+    a.filePath.localeCompare(b.filePath)
+  );
+
+  const totalFiles = sortedResults.length;
+  const allFunctions = sortedResults.flatMap((item) => item.functions);
   const totalFunctions = allFunctions.length;
   const totalCCSum = allFunctions.reduce(
     (sum, func) => sum + func.complexity,
     0
   );
+  //media de complexidade ciclomática do projeto
   const averageCC =
     totalFunctions > 0 ? (totalCCSum / totalFunctions).toFixed(2) : "0";
 
-  results.forEach((fileResult, fileIndex) => {
+  sortedResults.forEach((fileResult, fileIndex) => {
+    const fileName = path.basename(fileResult.filePath);
+    const fileFunctionsCount = fileResult.functions.length;
+    const fileCCSum = fileResult.functions.reduce((sum, func) => sum + func.complexity, 0);
+    const fileAverageCC = fileFunctionsCount > 0 ? (fileCCSum / fileFunctionsCount).toFixed(2) : "0";
+
+    tableRows += `
+                <tr class="file-header-row">
+                    <td colspan="3"; font-weight: bold; padding: 12px;">
+                        📄 ${fileName} (${fileFunctionsCount} function${fileFunctionsCount !== 1 ? 's' : ''}, average CC: ${fileAverageCC})
+                    </td>
+                </tr>
+            `;
+
     fileResult.functions.forEach((func, funcIndex) => {
       const color = getComplexityColor(func.complexity);
       const rowId = `row_${fileIndex}_${funcIndex}`;
@@ -49,9 +67,9 @@ function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
                     data-name="${dataName}"
                     data-line="${dataLine}"
                     onclick="handleRowClick('${dataFile}', '${dataName}', ${dataLine})">
-                    <td>${func.name}</td>
+                    <td style="padding-left: 30px;">${func.name}</td>
                     <td style="font-weight: bold;">${func.complexity}</td>
-                    <td>${path.basename(fileResult.filePath)}:${func.line}</td>
+                    <td>${fileName}:${func.line}</td>
                 </tr>
             `;
     });
@@ -70,7 +88,9 @@ function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
                 th, td { border: 1px solid var(--vscode-panel-border); padding: 8px; text-align: left; }
                 th { background-color: var(--vscode-list-hoverBackground); }
                 tbody { color: black;}
-                tr:hover { opacity: 0.8; }
+                tr:hover:not(.file-header-row) { opacity: 0.8; }
+                .file-header-row { cursor: default !important; }
+                .file-header-row:hover { opacity: 1 !important; }
                 .summary-box { 
                     padding: 10px; border: 1px solid var(--vscode-panel-border); 
                     margin-bottom: 20px; display: inline-block;
@@ -90,9 +110,9 @@ function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
             <table>
                 <thead>
                     <tr>
-                        <th>Função</th>
+                        <th>Function</th>
                         <th>CC</th>
-                        <th>Arquivo:Linha</th>
+                        <th>File:line</th>
                     </tr>
                 </thead>
                 <tbody>
