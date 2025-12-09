@@ -9,49 +9,6 @@ O **Cyclomatic Complexity Analyzer (CCA)** é uma ferramenta de análise estáti
   * **Visualização Interativa da AST:** Ao clicar em um arquivo, visualize a **Árvore de Sintaxe Abstrata (AST)** gerada, com nós de controle de fluxo (como `if`, `while`, `for`, `case`, `&&`, `||`, etc.) destacados para mostrar **como** o valor da CC é calculado.
   * **Relatórios e Priorização:** Lista funções e arquivos por ordem decrescente de CC, permitindo que você priorize refatorações.
 
-## 🚀 Como Usar
-
-### Instalação
-
-#### 1\. Via NPM ou Yarn
-
-Instale o pacote como uma dependência de desenvolvimento no seu projeto:
-
-```bash
-npm install --save-dev cyclomatic-complexity-analyzer
-# ou
-yarn add --dev cyclomatic-complexity-analyzer
-```
-
-#### 2\. Executando a Análise
-
-Você pode executar a ferramenta diretamente a partir da linha de comando, especificando o diretório raiz do seu projeto ou os arquivos que deseja analisar.
-
-**Exemplo no `package.json`:**
-
-Adicione um *script* para facilitar a execução:
-
-```json
-"scripts": {
-  "analyze:cc": "cca analyze ./src --threshold 10"
-}
-```
-
-Execute o *script*:
-
-```bash
-npm run analyze:cc
-```
-
-### Opções de Linha de Comando
-
-| Opção | Descrição | Exemplo |
-| :--- | :--- | :--- |
-| `--path <dir>` | O diretório base para análise (obrigatório). | `./src` |
-| `--threshold <num>` | O valor de CC máximo aceitável para funções (padrão: `10`). Funções acima deste limite são marcadas. | `--threshold 8` |
-| `--format <type>` | Formato da saída (`cli` ou `json`). | `--format json` |
-| `--exclude <pattern>`| Padrão glob para excluir arquivos/pastas (e.g., `**/__tests__/**`). | `--exclude '**/vendor/**'` |
-
 ## 💻 Interface do Usuário (CLI/Web)
 
 O CCA apresenta os resultados de maneira clara e hierárquica:
@@ -78,7 +35,7 @@ O CCA apresenta os resultados de maneira clara e hierárquica:
 
 Ao selecionar um arquivo, a interface interativa permite navegar pela AST da função. Os nós que aumentam a complexidade (e.g., `IfStatement`, `ForStatement`, `LogicalExpression` (`&&`, `||`)) são visualmente destacados, e um contador dinâmico mostra o CC acumulado.
 
-> 📝 **Nota:** Uma CC ideal é geralmente **inferior a 10**. Valores acima de 20 sugerem alta complexidade e necessidade urgente de refatoração (dividir a função em partes menores).
+> 📝 **Nota:** Uma CC ideal é geralmente **inferior a 10**. Valores acima de 20 sugerem alta complexidade e necessidade urgente de refatoração (dividir a função em partes menores). Você deverá visualizar a média de complexidade do seu projeto inteiro.
 
 ## 🛠️ Como Contribuir
 
