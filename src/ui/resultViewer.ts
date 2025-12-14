@@ -15,9 +15,11 @@ interface ProjectAnalysisResultItem {
   functions: FunctionComplexityResult[];
 }
 
-const getComplexityColor = (cc: number): string => {
-  if (cc >= 21) return "#ff0000ff"; 
-  if (cc >= 11) return "#edae01ff"; 
+const getComplexityColor = (cc: number, averageCC: number): string => {
+  if (averageCC === 0) return "#0cec00ff";
+  
+  if (cc >= averageCC * 2) return "#ff0000ff";
+  if (cc > averageCC) return "#edae01ff";
   return "#0cec00ff";
 };
 
@@ -37,7 +39,8 @@ function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
   );
   //media de complexidade ciclomática do projeto
   const averageCC =
-    totalFunctions > 0 ? (totalCCSum / totalFunctions).toFixed(2) : "0";
+    totalFunctions > 0 ? totalCCSum / totalFunctions : 0;
+  const averageCCFormatted = averageCC.toFixed(2);
 
   sortedResults.forEach((fileResult, fileIndex) => {
     const fileName = path.basename(fileResult.filePath);
@@ -54,7 +57,7 @@ function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
             `;
 
     fileResult.functions.forEach((func, funcIndex) => {
-      const color = getComplexityColor(func.complexity);
+      const color = getComplexityColor(func.complexity, averageCC);
       const rowId = `row_${fileIndex}_${funcIndex}`;
       const dataFile = encodeURIComponent(fileResult.filePath);
       const dataName = encodeURIComponent(func.name);
@@ -103,7 +106,7 @@ function getWebviewContent(results: ProjectAnalysisResultItem[]): string {
             <div class="summary-box">
                 <strong>Arquivos Analisados:</strong> ${totalFiles} |
                 <strong>Total de Funções:</strong> ${totalFunctions} |
-                <strong>CC Média do Projeto:</strong> ${averageCC}
+                <strong>CC Média do Projeto:</strong> ${averageCCFormatted}
             </div>
             <h2>Detalhes por Função</h2>
             <p style="font-size: 12px; color: var(--vscode-descriptionForeground);">Clique em uma linha para ver o grafo de path coverage</p>
