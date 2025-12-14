@@ -6,6 +6,7 @@ import {
   FileComplexityResult,
 } from "./analysis/analyser";
 import { showAnalysisResults } from "./ui/resultViewer";
+import { exportFileMetrics, exportMetricsToFiles } from "./analysis/metricsExporter";
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel(
@@ -91,6 +92,44 @@ export function activate(context: vscode.ExtensionContext) {
           2
         )}. Veja detalhes no Painel de Output.`
       );
+
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+        vscode.Uri.file(filePath)
+      );
+      if (workspaceFolder) {
+        try {
+          const projectFiles = await vscode.workspace.findFiles(
+            "**/*.{ts,js,tsx,jsx}",
+            "**/node_modules/**"
+          );
+
+          const allProjectFunctions: FunctionComplexityResult[] = [];
+          for (const fileUri of projectFiles) {
+            const fileContentBuffer = await vscode.workspace.fs.readFile(fileUri);
+            const fileContent = Buffer.from(fileContentBuffer).toString("utf8");
+            const projectFileResult = analyzeFile(fileContent, fileUri.fsPath);
+            allProjectFunctions.push(...projectFileResult.functions);
+          }
+
+          const totalProjectComplexity = allProjectFunctions.reduce(
+            (sum, func) => sum + func.complexity,
+            0
+          );
+          const projectAverageComplexity =
+            allProjectFunctions.length > 0
+              ? totalProjectComplexity / allProjectFunctions.length
+              : 0;
+
+          await exportFileMetrics(
+            fileResult,
+            filePath,
+            workspaceFolder.uri.fsPath,
+            projectAverageComplexity
+          );
+        } catch (error) {
+          console.error("Erro ao exportar métricas:", error);
+        }
+      }
     }
   );
 
@@ -155,6 +194,27 @@ export function activate(context: vscode.ExtensionContext) {
         (sum, f) => sum + f.functions.length,
         0
       );
+
+      const allFunctions = projectResults.flatMap((f) => f.functions);
+      const totalComplexity = allFunctions.reduce(
+        (sum, func) => sum + func.complexity,
+        0
+      );
+      const averageComplexity =
+        totalFunctions > 0 ? totalComplexity / totalFunctions : 0;
+
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (workspaceFolder) {
+        try {
+          await exportMetricsToFiles(
+            projectResults,
+            averageComplexity,
+            workspaceFolder.uri.fsPath
+          );
+        } catch (error) {
+          console.error("Erro ao exportar métricas:", error);
+        }
+      }
 
       const viewResultsButton = "Ver Relatório";
       const dismissButton = "Fechar";
