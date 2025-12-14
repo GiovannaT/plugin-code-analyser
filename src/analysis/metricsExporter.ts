@@ -11,17 +11,67 @@ interface MetricData {
   limit: number;
 }
 
-function formatMetricFile(data: MetricData): string {
-  return `Métrica : ${data.metricName}
-Região : ${data.regionName}
-Valor : ${data.metricValue}
-Modificado : ${data.modified}
-Tendência : ${data.changeTrend}
-Limite : ${data.limit}`;
+interface MetricsFile {
+  metrics: MetricData[];
 }
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[<>:"/\\|?*]/g, "_");
+}
+
+function getPreviousComplexity(metricFilePath: string): number | null {
+  if (!fs.existsSync(metricFilePath)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(metricFilePath, "utf8");
+    const metricsFile: MetricsFile = JSON.parse(content);
+    
+    if (metricsFile.metrics && metricsFile.metrics.length > 0) {
+      const lastMetric = metricsFile.metrics[metricsFile.metrics.length - 1];
+      return lastMetric.metricValue;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Erro ao ler métrica anterior:", error);
+    return null;
+  }
+}
+
+function getLastMetric(metricFilePath: string): MetricData | null {
+  if (!fs.existsSync(metricFilePath)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(metricFilePath, "utf8");
+    const metricsFile: MetricsFile = JSON.parse(content);
+    
+    if (metricsFile.metrics && metricsFile.metrics.length > 0) {
+      return metricsFile.metrics[metricsFile.metrics.length - 1];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Erro ao ler última métrica:", error);
+    return null;
+  }
+}
+
+function calculateTrend(currentValue: number, previousValue: number | null): string {
+  if (previousValue === null) {
+    return "Nova";
+  }
+  
+  if (currentValue > previousValue) {
+    return "Aumentando";
+  } else if (currentValue < previousValue) {
+    return "Diminuindo";
+  } else {
+    return "Estável";
+  }
 }
 
 function shouldExportMetric(
@@ -61,26 +111,59 @@ export async function exportMetricsToFiles(
         }
 
         const sanitizedFunctionName = sanitizeFileName(func.name);
-        const metricFileName = `${sanitizedFileName}_${sanitizedFunctionName}_L${func.line}.txt`;
+        const metricFileName = `${sanitizedFileName}_${sanitizedFunctionName}_L${func.line}.json`;
         const metricFilePath = path.join(metricsFolder, metricFileName);
 
-        const metricData: MetricData = {
-          metricName: "complexity metric",
-          regionName: `${func.name} (${path.basename(fileResult.filePath)}:${
-            func.line
-          })`,
-          metricValue: func.complexity,
-          modified: new Date().toISOString(),
-          changeTrend: "N/A",
-          limit: averageComplexity,
-        };
+        const previousComplexity = getPreviousComplexity(metricFilePath);
+        const trend = calculateTrend(func.complexity, previousComplexity);
+        const lastMetric = getLastMetric(metricFilePath);
 
-        const content = formatMetricFile(metricData);
-        const separator = "------------------------------\n";
-        const newContent = fs.existsSync(metricFilePath)
-          ? fs.readFileSync(metricFilePath, "utf8") + "\n" + separator + content
-          : content;
-        fs.writeFileSync(metricFilePath, newContent, "utf8");
+        let metricsFile: MetricsFile;
+        if (fs.existsSync(metricFilePath)) {
+          const content = fs.readFileSync(metricFilePath, "utf8");
+          metricsFile = JSON.parse(content);
+
+          if (
+            lastMetric &&
+            lastMetric.changeTrend === "Estável" &&
+            trend === "Estável" &&
+            lastMetric.metricValue === func.complexity
+          ) {
+            lastMetric.modified = new Date().toISOString();
+          } else {
+            const metricData: MetricData = {
+              metricName: "complexity metric",
+              regionName: `${func.name} (${path.basename(fileResult.filePath)}:${
+                func.line
+              })`,
+              metricValue: func.complexity,
+              modified: new Date().toISOString(),
+              changeTrend: trend,
+              limit: averageComplexity,
+            };
+            metricsFile.metrics.push(metricData);
+          }
+        } else {
+          const metricData: MetricData = {
+            metricName: "complexity metric",
+            regionName: `${func.name} (${path.basename(fileResult.filePath)}:${
+              func.line
+            })`,
+            metricValue: func.complexity,
+            modified: new Date().toISOString(),
+            changeTrend: trend,
+            limit: averageComplexity,
+          };
+          metricsFile = {
+            metrics: [metricData],
+          };
+        }
+
+        fs.writeFileSync(
+          metricFilePath,
+          JSON.stringify(metricsFile, null, 2),
+          "utf8"
+        );
       }
     }
   } catch (error) {
@@ -111,24 +194,55 @@ export async function exportFileMetrics(
       }
 
       const sanitizedFunctionName = sanitizeFileName(func.name);
-      const metricFileName = `${sanitizedFileName}_${sanitizedFunctionName}_L${func.line}.txt`;
+      const metricFileName = `${sanitizedFileName}_${sanitizedFunctionName}_L${func.line}.json`;
       const metricFilePath = path.join(metricsFolder, metricFileName);
 
-      const metricData: MetricData = {
-        metricName: "complexity metric",
-        regionName: `${func.name} (${path.basename(filePath)}:${func.line})`,
-        metricValue: func.complexity,
-        modified: new Date().toISOString(),
-        changeTrend: "N/A",
-        limit: projectAverageComplexity,
-      };
+      const previousComplexity = getPreviousComplexity(metricFilePath);
+      const trend = calculateTrend(func.complexity, previousComplexity);
+      const lastMetric = getLastMetric(metricFilePath);
 
-      const content = formatMetricFile(metricData);
-      const separator = "------------------------------\n";
-      const newContent = fs.existsSync(metricFilePath)
-        ? fs.readFileSync(metricFilePath, "utf8") + "\n" + separator + content
-        : content;
-      fs.writeFileSync(metricFilePath, newContent, "utf8");
+      let metricsFile: MetricsFile;
+      if (fs.existsSync(metricFilePath)) {
+        const content = fs.readFileSync(metricFilePath, "utf8");
+        metricsFile = JSON.parse(content);
+
+        if (
+          lastMetric &&
+          lastMetric.changeTrend === "Estável" &&
+          trend === "Estável" &&
+          lastMetric.metricValue === func.complexity
+        ) {
+          lastMetric.modified = new Date().toISOString();
+        } else {
+          const metricData: MetricData = {
+            metricName: "complexity metric",
+            regionName: `${func.name} (${path.basename(filePath)}:${func.line})`,
+            metricValue: func.complexity,
+            modified: new Date().toISOString(),
+            changeTrend: trend,
+            limit: projectAverageComplexity,
+          };
+          metricsFile.metrics.push(metricData);
+        }
+      } else {
+        const metricData: MetricData = {
+          metricName: "complexity metric",
+          regionName: `${func.name} (${path.basename(filePath)}:${func.line})`,
+          metricValue: func.complexity,
+          modified: new Date().toISOString(),
+          changeTrend: trend,
+          limit: projectAverageComplexity,
+        };
+        metricsFile = {
+          metrics: [metricData],
+        };
+      }
+
+      fs.writeFileSync(
+        metricFilePath,
+        JSON.stringify(metricsFile, null, 2),
+        "utf8"
+      );
     }
   } catch (error) {
     console.error("Erro ao exportar métricas do arquivo:", error);
