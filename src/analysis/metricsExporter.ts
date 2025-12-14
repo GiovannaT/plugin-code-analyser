@@ -24,11 +24,13 @@ function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[<>:"/\\|?*]/g, "_");
 }
 
-function shouldExportMetric(complexity: number, averageComplexity: number): boolean {
+function shouldExportMetric(
+  complexity: number,
+  averageComplexity: number
+): boolean {
   if (averageComplexity === 0) return false;
-  
-  const multipliers = [2, 3, 4, 5];
-  return multipliers.some(multiplier => complexity >= averageComplexity * multiplier);
+
+  return complexity >= averageComplexity * 2;
 }
 
 export async function exportMetricsToFiles(
@@ -41,15 +43,18 @@ export async function exportMetricsToFiles(
 ): Promise<void> {
   try {
     const metricsFolder = path.join(workspaceRoot, "complexity-metrics");
-    
+
     if (!fs.existsSync(metricsFolder)) {
       fs.mkdirSync(metricsFolder, { recursive: true });
     }
 
     for (const fileResult of results) {
-      const fileName = path.basename(fileResult.filePath, path.extname(fileResult.filePath));
+      const fileName = path.basename(
+        fileResult.filePath,
+        path.extname(fileResult.filePath)
+      );
       const sanitizedFileName = sanitizeFileName(fileName);
-      
+
       for (const func of fileResult.functions) {
         if (!shouldExportMetric(func.complexity, averageComplexity)) {
           continue;
@@ -61,7 +66,9 @@ export async function exportMetricsToFiles(
 
         const metricData: MetricData = {
           metricName: "complexity metric",
-          regionName: `${func.name} (${path.basename(fileResult.filePath)}:${func.line})`,
+          regionName: `${func.name} (${path.basename(fileResult.filePath)}:${
+            func.line
+          })`,
           metricValue: func.complexity,
           modified: new Date().toISOString(),
           changeTrend: "N/A",
@@ -69,7 +76,11 @@ export async function exportMetricsToFiles(
         };
 
         const content = formatMetricFile(metricData);
-        fs.writeFileSync(metricFilePath, content, "utf8");
+        const separator = "------------------------------\n";
+        const newContent = fs.existsSync(metricFilePath)
+          ? fs.readFileSync(metricFilePath, "utf8") + "\n" + separator + content
+          : content;
+        fs.writeFileSync(metricFilePath, newContent, "utf8");
       }
     }
   } catch (error) {
@@ -86,7 +97,7 @@ export async function exportFileMetrics(
 ): Promise<void> {
   try {
     const metricsFolder = path.join(workspaceRoot, "complexity-metrics");
-    
+
     if (!fs.existsSync(metricsFolder)) {
       fs.mkdirSync(metricsFolder, { recursive: true });
     }
@@ -113,11 +124,14 @@ export async function exportFileMetrics(
       };
 
       const content = formatMetricFile(metricData);
-      fs.writeFileSync(metricFilePath, content, "utf8");
+      const separator = "------------------------------\n";
+      const newContent = fs.existsSync(metricFilePath)
+        ? fs.readFileSync(metricFilePath, "utf8") + "\n" + separator + content
+        : content;
+      fs.writeFileSync(metricFilePath, newContent, "utf8");
     }
   } catch (error) {
     console.error("Erro ao exportar métricas do arquivo:", error);
     throw error;
   }
 }
-
